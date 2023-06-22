@@ -28,7 +28,7 @@ def test_build_query_with_supported_field(cbr_product : CbResponse):
 
     result = cbr_product.build_query(filters)
 
-    assert result == ' hostname:workstation1 username:admin start:-1440m start:-10m (group:"accounting dept")'
+    assert result == 'hostname:workstation1 username:admin start:-1440m start:-10m (group:"accounting dept")'
 
 
 def test_build_query_with_unsupported_field(cbr_product : CbResponse):
@@ -80,7 +80,11 @@ def test_nested_process_search(cbr_product : CbResponse, mocker):
         mocker.call('(sha256:zxcvzxcvzxcv)'),
         mocker.call('(process_name:svchost.exe OR process_name:cmd.exe)'),
         mocker.call('(process_name:rundll.exe)'),
-        mocker.call('((cmdline:-enc) OR (modload:malware.dll))')
+        mocker.call('((cmdline:-enc) OR (modload:malware.dll))'),
+        mocker.call('((md5:3082699dd8831685e69c237637671577) OR (sha256:6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5))'),
+        mocker.call('((md5:3896ff04bf87dabb38a6057a61312de7) OR (sha256:061d9b82a348514cff4debc4cfacb0b73a356e4e8be14022310cf537981e9bfb))'),
+        mocker.call('((filewrite_md5:1e17a3e0531151fd473c68c532943b26) OR (filewrite_sha256:f1801c46da23f109842d5004db8fb787dcfc958dd50d744e52fff0d32e8a007f))'),
+        mocker.call('((md5:3a90eb31cfb418f2ecdf996dfb85c94e) OR (sha256:cf958d621bf5188e1ce17fdc056b1aee6b0aa24e26b5cf529c92b20821e05824))')
     ]
 
     for program, criteria in programs.items():

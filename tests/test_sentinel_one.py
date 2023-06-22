@@ -93,14 +93,15 @@ def test_nested_process_search_dv(s1_product : SentinelOne):
         programs = json.load(f)
 
     s1_product._queries = {}
+    s1_product.log = logging.getLogger('pytest_surveyor')
     s1_product._pq = False
 
     for program, criteria in programs.items():
         s1_product.nested_process_search(Tag(program), criteria, {})
     
-    assert len(s1_product._queries) == 4
+    assert len(s1_product._queries) == 5
 
-    assert len(s1_product._queries[Tag('field_translation')]) == 13
+    assert len(s1_product._queries[Tag('field_translation')]) == 25
     sdate = s1_product._queries[Tag('field_translation')][0].start_date
     edate = s1_product._queries[Tag('field_translation')][0].end_date
     assert Query(sdate, edate, 'ProcessName', 'containscis', '"notepad.exe"', None) in s1_product._queries[Tag('field_translation')]
@@ -116,7 +117,19 @@ def test_nested_process_search_dv(s1_product : SentinelOne):
     assert Query(sdate, edate, 'Md5', 'containscis', '"asdfasdfasdfasdf"', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'Sha1', 'containscis', '"qwerqwerqwerqwer"', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'Sha256', 'containscis', '"zxcvzxcvzxcv"', None) in s1_product._queries[Tag('field_translation')]
-    
+    assert Query(sdate, edate, 'Sha1', 'in contains anycase', '("868b82e6f64ba1382d19378617fbd9f88fda1d87")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'Md5', 'in contains anycase', '("3082699dd8831685e69c237637671577")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'Sha256', 'in contains anycase', '("6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'TgtProcImageSha1', 'in contains anycase', '("0de422eddb71f0c119888da7edf1a716df4f4d31")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'TgtProcImageMd5', 'in contains anycase', '("3896ff04bf87dabb38a6057a61312de7")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'TgtProcImageSha256', 'in contains anycase', '("061d9b82a348514cff4debc4cfacb0b73a356e4e8be14022310cf537981e9bfb")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'TgtFileSha1', 'in contains anycase', '("3f302c0ba1308d437efbd549a9291386d2e1f1c7")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'TgtFileMd5', 'in contains anycase', '("1e17a3e0531151fd473c68c532943b26")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'TgtFileSha256', 'in contains anycase', '("f1801c46da23f109842d5004db8fb787dcfc958dd50d744e52fff0d32e8a007f")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'ModuleSha1', 'in contains anycase', '("0650f91a37e9f20df9178546547cffe942534665")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'ModuleMd5', 'in contains anycase', '("3a90eb31cfb418f2ecdf996dfb85c94e")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'ModuleSha256', 'in contains anycase', '("cf958d621bf5188e1ce17fdc056b1aee6b0aa24e26b5cf529c92b20821e05824")', None) in s1_product._queries[Tag('field_translation')]
+
     assert len(s1_product._queries[Tag('multiple_values')]) == 1
     sdate = s1_product._queries[Tag('multiple_values')][0].start_date
     edate = s1_product._queries[Tag('multiple_values')][0].end_date    
@@ -137,39 +150,61 @@ def test_nested_process_search_pq(s1_product : SentinelOne):
         programs = json.load(f)
 
     s1_product._queries = {}
+    s1_product.log = logging.getLogger('pytest_surveyor')
     s1_product._pq = True
 
     for program, criteria in programs.items():
         s1_product.nested_process_search(Tag(program), criteria, {})
     
-    assert len(s1_product._queries) == 4
+    assert len(s1_product._queries) == 5
 
-    assert len(s1_product._queries[Tag('field_translation')]) == 18
+    assert len(s1_product._queries[Tag('field_translation')]) == 34
     sdate = s1_product._queries[Tag('field_translation')][0].start_date
     edate = s1_product._queries[Tag('field_translation')][0].end_date
-    assert Query(sdate, edate, 'src.process.name', 'in', '("notepad.exe")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.name', 'in', '("notepad.exe")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'dst.ip.address', 'in', '("127.0.0.1")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.cmdline', 'in', '("MiniDump")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.publisher', 'in', '("Microsoft Publisher")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.cmdline', 'in', '("MiniDump")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.publisher', 'in', '("Microsoft Publisher")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'url.address', 'in', '("raw.githubusercontent.com")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'tgt.file.internalName', 'in', '("powershell")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'url.address', 'in', '("https://google.com")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'tgt.file.path', 'in', '("current_date.txt")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'module.path', 'in', '("pcwutl.dll")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.displayName', 'in', '("Evil Stuff Here")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.image.md5', 'in', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.image.sha256', 'in', '("zxcvzxcvzxcv")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.image.sha1', 'in', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.displayName', 'in', '("Evil Stuff Here")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.image.md5', 'in', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.image.sha256', 'in', '("zxcvzxcvzxcv")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.image.sha1', 'in', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'tgt.file.md5', 'in', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'tgt.file.sha256', 'in', '("zxcvzxcvzxcv")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'tgt.file.sha1', 'in', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'module.md5', 'in', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation')]
     assert Query(sdate, edate, 'module.sha1', 'in', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation')]
     
+    assert Query(sdate, edate, 'tgt.process.image.md5', 'in', '("3082699dd8831685e69c237637671577")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.image.sha256', 'in', '("6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.image.sha1', 'in', '("868b82e6f64ba1382d19378617fbd9f88fda1d87")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.file.md5', 'in', '("3082699dd8831685e69c237637671577")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.file.sha256', 'in', '("6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.file.sha1', 'in', '("868b82e6f64ba1382d19378617fbd9f88fda1d87")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'module.md5', 'in', '("3082699dd8831685e69c237637671577")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'module.sha1', 'in', '("868b82e6f64ba1382d19378617fbd9f88fda1d87")', None) in s1_product._queries[Tag('field_translation')]
+     
+    assert Query(sdate, edate, 'tgt.process.image.md5', 'in', '("3896ff04bf87dabb38a6057a61312de7")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.image.sha256', 'in', '("061d9b82a348514cff4debc4cfacb0b73a356e4e8be14022310cf537981e9bfb")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.process.image.sha1', 'in', '("0de422eddb71f0c119888da7edf1a716df4f4d31")', None) in s1_product._queries[Tag('field_translation')]
+
+    assert Query(sdate, edate, 'tgt.file.md5', 'in', '("1e17a3e0531151fd473c68c532943b26")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.file.sha256', 'in', '("f1801c46da23f109842d5004db8fb787dcfc958dd50d744e52fff0d32e8a007f")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'tgt.file.sha1', 'in', '("3f302c0ba1308d437efbd549a9291386d2e1f1c7")', None) in s1_product._queries[Tag('field_translation')]
+
+    assert Query(sdate, edate, 'module.md5', 'in', '("3a90eb31cfb418f2ecdf996dfb85c94e")', None) in s1_product._queries[Tag('field_translation')]
+    assert Query(sdate, edate, 'module.sha1', 'in', '("0650f91a37e9f20df9178546547cffe942534665")', None) in s1_product._queries[Tag('field_translation')]
+
+
     assert len(s1_product._queries[Tag('multiple_values')]) == 1
     sdate = s1_product._queries[Tag('multiple_values')][0].start_date
     edate = s1_product._queries[Tag('multiple_values')][0].end_date    
-    assert Query(sdate, edate, 'src.process.name', 'in', '("svchost.exe", "cmd.exe")', None) in s1_product._queries[Tag('multiple_values')]
+    assert Query(sdate, edate, 'tgt.process.name', 'in', '("svchost.exe", "cmd.exe")', None) in s1_product._queries[Tag('multiple_values')]
     
     assert len(s1_product._queries[Tag('single_query')]) == 1
     sdate = s1_product._queries[Tag('single_query')][0].start_date

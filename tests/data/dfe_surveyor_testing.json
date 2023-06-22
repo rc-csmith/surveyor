@@ -10,7 +10,11 @@
     "md5":["asdfasdfasdfasdf"],
     "sha1":["qwerqwerqwerqwer"],
     "sha256":["zxcvzxcvzxcv"],
-    "modload":["pcwutl.dll"]
+    "modload":["pcwutl.dll"],
+    "hash":["868b82e6f64ba1382d19378617fbd9f88fda1d87", "3082699dd8831685e69c237637671577", "6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5"],
+    "process_hash":["0de422eddb71f0c119888da7edf1a716df4f4d31", "3896ff04bf87dabb38a6057a61312de7", "061d9b82a348514cff4debc4cfacb0b73a356e4e8be14022310cf537981e9bfb"],
+    "filemod_hash":["3f302c0ba1308d437efbd549a9291386d2e1f1c7", "1e17a3e0531151fd473c68c532943b26", "f1801c46da23f109842d5004db8fb787dcfc958dd50d744e52fff0d32e8a007f"],
+    "modload_hash":["0650f91a37e9f20df9178546547cffe942534665", "3a90eb31cfb418f2ecdf996dfb85c94e", "cf958d621bf5188e1ce17fdc056b1aee6b0aa24e26b5cf529c92b20821e05824"]
   }, 
   "multiple_values":{
     "process_name":["svchost.exe", "cmd.exe"]
@@ -20,5 +24,11 @@
   },
   "multiple_query":{
     "query":["DeviceProcessEvents | where ProcessCommandLine contains \"-enc\"", "DeviceImageLoadEvents | where FileName contains \"malware.dll\""]
+  },
+  "unsupported_field":{
+    "foo":["bar"]
+  },
+  "unsupported_hash":{
+    "hash":["1594244d52f2d8c12b142bb61f47bc2eaf503d6d9ca8480cae9fcf112f66e4967dc5e8fa98285e36db8af1b8ffa8b84cb15e0fbcf836c3deb803c13f37659a60"]
   }
 }
