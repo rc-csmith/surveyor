@@ -5,7 +5,6 @@ from typing import Generator
 import cbc_sdk.errors # type: ignore
 from cbc_sdk.rest_api import CBCloudAPI # type: ignore
 from cbc_sdk.platform import Process # type: ignore
-from cbc_sdk.base import QueryBuilder # type: ignore
 
 from common import Product, Result, Tag, hash_translation
 
