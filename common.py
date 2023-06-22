@@ -1,10 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Optional, Any
-
+from typing import Tuple, Optional, Any, Union
+from hashid import HashID
 from help import log_echo
-
 
 class AuthenticationError(Exception):
     pass
@@ -180,3 +179,25 @@ def sigma_translation(product: str, sigma_rules: list) -> dict:
                 'description': r.description
             })
         return results
+
+def hash_translation(hashes: list, supported_field_list: dict) -> dict:
+    results: dict[str, list[str]] = {}
+
+    for hash_item in hashes:
+        identified_modes = HashID().identifyHash(phash=hash_item)
+
+        for mode in identified_modes:
+            if mode.name in supported_field_list.keys():
+                field_name: Union[list[str], str] = supported_field_list[mode.name]
+                if isinstance(field_name, list):
+                    for entry in field_name:
+                        if entry in results:
+                            results[entry].append(hash_item)
+                        else:
+                            results[entry] = [hash_item]
+                else:
+                    if field_name in results:
+                        results[field_name].append(hash_item)
+                    else:
+                        results[field_name] = [hash_item]
+    return results
