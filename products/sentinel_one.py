@@ -20,7 +20,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
 
-from common import Product, Tag, Result, AuthenticationError
+from common import Product, Tag, Result, AuthenticationError, hash_translation
 from help import datetime_to_epoch_millis
 
 
@@ -48,24 +48,77 @@ PARAMETER_MAPPING_DV: dict[str, list[str]] = {
     'process_file_description': ['SrcProcDisplayName'],
     'md5': ['Md5'],
     'sha1':['Sha1'],
-    'sha256':['Sha256']
+    'sha256':['Sha256'], 
+    'hash': ['hash'], # non-existent field to specify a list of hashes
+    'process_hash': ['process_hash'], # non-existent field to specify a list of hashes
+    'filemod_hash': ['filemod_hash'], # non-existent field to specify a list of hashes
+    'modload_hash': ['modload_hash'] # non-existent field to specify a list of hashes
+}
+
+SUPPORTED_HASH_TYPES_DV: dict[str, dict[str, list[str]]] = {
+    'hash':{
+        'MD5': ['Md5'],
+        'SHA-1': ['Sha1'],
+        'SHA-256': ['Sha256']
+    },
+    'process_hash':{
+        'MD5': ['TgtProcImageMd5'],
+        'SHA-1': ['TgtProcImageSha1'],
+        'SHA-256': ['TgtProcImageSha256']
+    },
+    'filemod_hash':{
+        'MD5': ['TgtFileMd5'],
+        'SHA-1': ['TgtFileSha1'],
+        'SHA-256': ['TgtFileSha256']
+    },
+    'modload_hash':{
+        'MD5':['ModuleMd5'],
+        'SHA-1': ['ModuleSha1'],
+        'SHA-256': ['ModuleSha256']
+    }
 }
 
 PARAMETER_MAPPING_PQ: dict[str, list[str]] = {
     'query': ['query'],
-    'process_name': ['src.process.name'],
+    'process_name': ['tgt.process.name'],
     'ipaddr': ['dst.ip.address'],
     'url': ['url.address'],
-    'cmdline': ['src.process.cmdline'],
-    'digsig_publisher': ['src.process.publisher'],
+    'cmdline': ['tgt.process.cmdline'],
+    'digsig_publisher': ['tgt.process.publisher'],
     'domain': ['url.address'],
     'filemod': ['tgt.file.path'],
     'internal_name': ['tgt.file.internalName'],
     'modload': ['module.path'],
-    'process_file_description': ['src.process.displayName'],
-    'md5': ['src.process.image.md5', 'tgt.file.md5', 'module.md5'],
-    'sha256':['src.process.image.sha256','tgt.file.sha256'],
-    'sha1':['src.process.image.sha1','tgt.file.sha1','module.sha1']
+    'process_file_description': ['tgt.process.displayName'],
+    'md5': ['tgt.process.image.md5', 'tgt.file.md5', 'module.md5'],
+    'sha256':['tgt.process.image.sha256','tgt.file.sha256'],
+    'sha1':['tgt.process.image.sha1','tgt.file.sha1','module.sha1'],
+    'hash':['hash'],
+    'process_hash':['process_hash'],
+    'filemod_hash':['filemod_hash'],
+    'modload_hash':['modload_hash']
+}
+
+SUPPORTED_HASH_TYPES_PQ: dict [str, dict[str, list[str]]] = {
+    'hash':{
+        'MD5': ['tgt.process.image.md5', 'tgt.file.md5', 'module.md5'],
+        'SHA-256':['tgt.process.image.sha256','tgt.file.sha256'],
+        'SHA-1':['tgt.process.image.sha1','tgt.file.sha1','module.sha1']  
+    },
+    'process_hash':{
+        'MD5': ['tgt.process.image.md5'],
+        'SHA-256': ['tgt.process.image.sha256'],
+        'SHA-1': ['tgt.process.image.sha1']
+    },
+    'filemod_hash':{
+        'MD5': ['tgt.file.md5'],
+        'SHA-256': ['tgt.file.sha256'],
+        'SHA-1': ['tgt.file.sha1']
+    },
+    'modload_hash':{
+        'MD5': ['module.md5'],
+        'SHA-1': ['module.sha1']
+    }
 }
 
 class SentinelOne(Product):
@@ -510,6 +563,11 @@ class SentinelOne(Product):
                             else:
                                 search_value = terms[0]
                             self._queries[tag].append(Query(from_date, to_date, None, None, None, search_value))
+                        elif param in SUPPORTED_HASH_TYPES_PQ.keys():
+                            hash_dict = hash_translation(terms, SUPPORTED_HASH_TYPES_PQ[param])
+                            for hash_type, hash_values in hash_dict.items():
+                                search_value = '(' + ', '.join(f'"{x}"' for x in hash_values) + ')'
+                                self._queries[tag].append(Query(from_date, to_date, hash_type, 'in', search_value))
                         else:
                             search_value = '(' + ', '.join(f'"{x}"' for x in terms) + ')'
                             self._queries[tag].append(Query(from_date, to_date, param, 'in', search_value))
@@ -517,25 +575,30 @@ class SentinelOne(Product):
                     # play nice with 100 item limit per search field
                     chunked_terms = list(self.divide_chunks(terms, 100))
                     for chunk in chunked_terms:
-                        search_value = ', '.join(f'"{x}"' for x in chunk)
-
                         for param in parameter:
-                            if param == 'query':
-                                # Formats queries as (a) OR (b) OR (c) OR (d)
-                                if len(chunk) > 1:
-                                    search_value = '(' + ') OR ('.join(chunk) + ')'
-                                else:
-                                    search_value = terms[0]
-                                operator = 'raw'
-                            elif len(terms) > 1:
-                                search_value = f'({search_value})'
-                                operator = 'in contains anycase'
-                            elif not re.findall(r'\w+\.\w+', search_value) and tag.tag.startswith("IOC - "):
-                                operator = 'regexp'
+                            if param in SUPPORTED_HASH_TYPES_DV.keys():
+                                hash_dict = hash_translation(chunk, SUPPORTED_HASH_TYPES_DV[param])
+                                for hash_type, hash_values in hash_dict.items():
+                                    search_value = '(' + ', '.join(f'"{x}"' for x in hash_values) + ')'
+                                    self._queries[tag].append(Query(from_date, to_date, hash_type, 'in contains anycase', search_value))
                             else:
-                                operator = 'containscis'
+                                search_value = ', '.join(f'"{x}"' for x in chunk)
+                                if param == 'query':
+                                    # Formats queries as (a) OR (b) OR (c) OR (d)
+                                    if len(chunk) > 1:
+                                        search_value = '(' + ') OR ('.join(chunk) + ')'
+                                    else:
+                                        search_value = terms[0]
+                                    operator = 'raw'
+                                elif len(terms) > 1:
+                                    search_value = f'({search_value})'
+                                    operator = 'in contains anycase'
+                                elif not re.findall(r'\w+\.\w+', search_value) and tag.tag.startswith("IOC - "):
+                                    operator = 'regexp'
+                                else:
+                                    operator = 'containscis'
 
-                            self._queries[tag].append(Query(from_date, to_date, param, operator, search_value))
+                                self._queries[tag].append(Query(from_date, to_date, param, operator, search_value))
         except KeyboardInterrupt:
             self._echo("Caught CTRL-C. Returning what we have...")
 

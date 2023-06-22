@@ -5,7 +5,7 @@ import os
 
 import requests
 from typing import Union
-from common import Product, Tag, Result
+from common import Product, Tag, Result, hash_translation
 
 PARAMETER_MAPPING: dict[str, dict[str, Union[str, list[str]]]] = {
     'process_name': {'table':'DeviceProcessEvents','field':'FolderPath',
@@ -23,14 +23,58 @@ PARAMETER_MAPPING: dict[str, dict[str, Union[str, list[str]]]] = {
                'projections':['DeviceName', 'InitiatingProcessAccountName','InitiatingProcessFolderPath','InitiatingProcessCommandLine']},
     'internal_name': {'table':'DeviceProcessEvents','field':'ProcessVersionInfoInternalFileName', 
                       'projections':['DeviceName','AccountName','FolderPath','ProcessCommandLine']},
-    'md5': {'table':'DeviceProcessEvents','field':'MD5',
+    'md5': {'table':'union withsource=sourceTable DeviceProcessEvents, DeviceFileEvents, DeviceImageLoadEvents','field':'MD5',
+            'additional':'| extend proc_name = iff(sourceTable=="DeviceProcessEvents", FolderPath, InitiatingProcessFolderPath) | extend username = iff(sourceTable=="DeviceProcessEvents", AccountName, InitiatingProcessAccountName) | extend cmdline = iff(sourceTable=="DeviceProcessEvents", ProcessCommandLine, InitiatingProcessCommandLine) | project DeviceName, proc_name, username, cmdline | project-rename FolderPath=proc_name, AccountName=username, ProcessCommandLine=cmdline',
             'projections':['DeviceName','AccountName','FolderPath','ProcessCommandLine']},
-    'sha1':{'table':'DeviceProcessEvents','field':'SHA1',
+    'sha1':{'table':'union withsource=sourceTable DeviceProcessEvents, DeviceFileEvents, DeviceImageLoadEvents','field':'SHA1',
+            'additional':'| extend proc_name = iff(sourceTable=="DeviceProcessEvents", FolderPath, InitiatingProcessFolderPath) | extend username = iff(sourceTable=="DeviceProcessEvents", AccountName, InitiatingProcessAccountName) | extend cmdline = iff(sourceTable=="DeviceProcessEvents", ProcessCommandLine, InitiatingProcessCommandLine) | project DeviceName, proc_name, username, cmdline | project-rename FolderPath=proc_name, AccountName=username, ProcessCommandLine=cmdline',
             'projections':['DeviceName','AccountName','FolderPath','ProcessCommandLine']},
-    'sha256':{'table':'DeviceProcessEvents','field':'SHA256',
-              'projections':['DeviceName','AccountName','FolderPath','ProcessCommandLine']},
+    'sha256':{'table':'union withsource=sourceTable DeviceProcessEvents, DeviceFileEvents, DeviceImageLoadEvents','field':'SHA256',
+            'additional':'| extend proc_name = iff(sourceTable=="DeviceProcessEvents", FolderPath, InitiatingProcessFolderPath) | extend username = iff(sourceTable=="DeviceProcessEvents", AccountName, InitiatingProcessAccountName) | extend cmdline = iff(sourceTable=="DeviceProcessEvents", ProcessCommandLine, InitiatingProcessCommandLine) | project DeviceName, proc_name, username, cmdline | project-rename FolderPath=proc_name, AccountName=username, ProcessCommandLine=cmdline',
+            'projections':['DeviceName','AccountName','FolderPath','ProcessCommandLine']},
     'modload':{'table': 'DeviceImageLoadEvents', 'field':'FolderPath',
-               'projections':['DeviceName', 'InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']}
+               'projections':['DeviceName', 'InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']},
+    'process_md5': {'table': 'DeviceProcessEvents', 'field':'MD5',
+                    'projections':['DeviceName', 'AccountName', 'FolderPath', 'ProcessCommandLine']},
+    'process_sha1':{'table':'DeviceProcessEvents', 'field':'SHA1',
+                    'projections':['DeviceName','AccountName','FolderPath','ProcessCommandLine']},
+    'process_sha256':{'table':'DeviceProcessEvents','field':'SHA256',
+                      'projections':['DeviceName','AccountName','FolderPath','ProcessCommandLine']},
+    'filemod_md5':{'table': 'DeviceFileEvents', 'field':'MD5',
+                   'projections':['DeviceName','InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']},
+    'filemod_sha1':{'table': 'DeviceFileEvents','field':'SHA1',
+                    'projections':['DeviceName','InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']},
+    'filemod_sha256':{'table': 'DeviceFileEvents','field':'SHA256',
+                      'projections':['DeviceName','InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']},
+    'modload_md5':{'table': 'DeviceImageLoadEvents','field':'MD5',
+                   'projections':['DeviceName','InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']},
+    'modload_sha1':{'table': 'DeviceImageLoadEvents','field':'SHA1',
+                    'projections':['DeviceName','InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']},
+    'modload_sha256':{'table': 'DeviceImageLoadEvents','field':'SHA256',
+                        'projections':['DeviceName','InitiatingProcessAccountName', 'InitiatingProcessFolderPath', 'InitiatingProcessCommandLine']}
+}
+
+SUPPORTED_HASH_TYPES: dict[str, dict[str, str]] = {
+    'hash':{
+        'MD5':'md5',
+        'SHA-1':'sha1',
+        'SHA-256': 'sha256'
+    },
+    'process_hash':{
+        'MD5': 'process_md5',
+        'SHA-1': 'process_sha1',
+        'SHA-256': 'process_sha256'
+    },
+    'filemod_hash':{
+        'MD5':'filemod_md5',
+        'SHA-1': 'filemod_sha1',
+        'SHA-256':'filemod_sha256'
+    },
+    'modload_hash':{
+        'MD5':'modload_md5',
+        'SHA-1':'modload_sha1',
+        'SHA-256':'modload_sha256'
+    }
 }
 
 class DefenderForEndpoints(Product):
@@ -157,6 +201,21 @@ class DefenderForEndpoints(Product):
                         query_entry = terms
                         query_entry += f" {query_base}" if query_base != '' else ''
                         self.process_search(tag, {}, query_entry)
+                elif search_field in SUPPORTED_HASH_TYPES.keys():
+                    hash_dict = hash_translation(terms, SUPPORTED_HASH_TYPES[search_field])
+                    for hash_type, hash_values in hash_dict.items():
+                        all_hash_values = ', '.join(f"'{hash_value}'" for hash_value in hash_values)
+                        query = f"| where {PARAMETER_MAPPING[hash_type]['field']} has_any ({all_hash_values})"
+
+                        query = f"{PARAMETER_MAPPING[hash_type]['table']} {query} "
+
+                        query += f"{(PARAMETER_MAPPING[hash_type]['additional'])} " if 'additional' in PARAMETER_MAPPING[hash_type] else ''
+
+                        query += f" {query_base} " if query_base != '' else ''
+
+                        query += f"| project Timestamp, {', '.join(PARAMETER_MAPPING[hash_type]['projections'])}"
+
+                        self.process_search(tag, {}, query)
                 else:
                     all_terms = ', '.join(f"'{term}'" for term in terms)
                     if search_field in PARAMETER_MAPPING:

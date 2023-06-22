@@ -7,7 +7,26 @@ from cbc_sdk.rest_api import CBCloudAPI # type: ignore
 from cbc_sdk.platform import Process # type: ignore
 from cbc_sdk.base import QueryBuilder # type: ignore
 
-from common import Product, Result, Tag
+from common import Product, Result, Tag, hash_translation
+
+SUPPORTED_HASH_TYPES: dict[str,dict[str,str]] = {
+    'hash':{
+        'MD5': 'hash',
+        'SHA-256': 'hash'
+    },
+    'process_hash':{
+        'MD5': 'process_hash',
+        'SHA-256': 'process_hash'
+    },
+    'filemod_hash':{
+        'MD5': 'filemod_hash',
+        'SHA-256': 'filemod_hash'
+    },
+    'modload_hash':{
+        'MD5': 'modload_hash',
+        'SHA-256': 'modload_hash'
+    }
+}
 
 PARAMETER_MAPPING: dict[str, str] = {
     'process_name': 'process_name',
@@ -52,24 +71,24 @@ class CbEnterpriseEdr(Product):
 
         self._conn = cb_conn
 
-    def build_query(self, filters: dict) -> QueryBuilder:
-        query_base = QueryBuilder()
+    def build_query(self, filters: dict) -> str:
+        query_base = []
 
         for key, value in filters.items():
             if key == "days":
                 minutes_back = f'start:-{value * 1440}m'
                 minutes_back = _convert_relative_time(minutes_back)
-                query_base.and_(minutes_back)
+                query_base.append(minutes_back)
             elif key == "minutes":
                 minutes_back = f'start:-{value}m'
                 minutes_back = _convert_relative_time(minutes_back)
-                query_base.and_(minutes_back)
+                query_base.append(minutes_back)
             elif key == "hostname":
                 device_name = f'device_name:{value}'
-                query_base.and_(device_name)
+                query_base.append(device_name)
             elif key == "username":
                 user_name = f'process_username:{value}'
-                query_base.and_(user_name)
+                query_base.append(user_name)
             else:
                 self._echo(f'Query filter {key} is not supported by product {self.product}', logging.WARNING)
 
@@ -77,34 +96,29 @@ class CbEnterpriseEdr(Product):
             device_group = []
             for name in self._device_group:
                 device_group.append(f'device_group:"{name}"')
-            query_base.and_('(' + ' OR '.join(device_group) + ')')
+            query_base.append('(' + ' OR '.join(device_group) + ')')
 
         if self._device_policy:
             device_policy = []
             for name in self._device_policy:
                 device_policy.append(f'device_policy:"{name}"')
-            query_base.and_('(' + ' OR '.join(device_policy) + ')')
+            query_base.append('(' + ' OR '.join(device_policy) + ')')
 
-        return query_base
+        return ' '.join(query_base)
 
     def divide_chunks(self, l: list, n: int) -> Generator:
         for i in range(0, len(l), n):
             yield l[i:i + n]
 
-    def perform_query(self, tag: Tag, base_query: dict, query: str) -> set[Result]:
+    def perform_query(self, tag: Tag, query: str) -> set[Result]:
         results = set()
-        parsed_base_query = self.build_query(base_query)
         try:
             self.log.debug(f'Query {tag}: {query}')
 
             process = self._conn.select(Process)
 
-            full_query = parsed_base_query.where(query)
-
-            self.log.debug(f'Full Query: {full_query.__str__}')
-
             # noinspection PyUnresolvedReferences
-            for proc in process.where(full_query):
+            for proc in process.where(query):
                 deets = proc.get_details()
                 
                 hostname = deets['device_name'] if 'device_name' in deets else 'None'
@@ -125,8 +139,9 @@ class CbEnterpriseEdr(Product):
 
         return results
 
-    def process_search(self, tag: Tag, base_query: dict, query: str) -> None:        
-        results = self.perform_query(tag, base_query, query)
+    def process_search(self, tag: Tag, base_query: dict, query: str) -> None:
+        query += f' {self.build_query(base_query)}' if base_query != {} else ''
+        results = self.perform_query(tag, query)
 
         self._add_results(list(results), tag)
 
@@ -142,7 +157,20 @@ class CbEnterpriseEdr(Product):
                         query = '(' + terms[0] + ')'
                 else:
                     query = terms
-                results += self.perform_query(tag, base_query, query)
+                query += f' {self.build_query(base_query)}' if base_query != {} else ''
+                results += self.perform_query(tag, query)
+            elif search_field in SUPPORTED_HASH_TYPES.keys():
+                query_term_list = []
+                hash_dict = hash_translation(terms, SUPPORTED_HASH_TYPES[search_field])
+                for hash_type, hash_values in hash_dict.items():
+                    query_term_list.append('(' + ' OR '.join('%s:%s' %(hash_type, hash_value) for hash_value in hash_values) + ')')
+                if len(query_term_list) > 0:
+                    query = '(' + ' OR '.join(query_term_list) + ')'
+                    query += f' {self.build_query(base_query)}' if base_query != {} else ''
+                    results += self.perform_query(tag, query)
+                else:
+                    self._echo(f'None of the provided hashes are supported by product {self.product}',
+                        logging.WARNING)
             else:
                 chunked_terms = list(self.divide_chunks(terms, 100))
 
@@ -156,7 +184,8 @@ class CbEnterpriseEdr(Product):
                         continue
 
                     query = '(' + ' OR '.join('%s:%s' % (PARAMETER_MAPPING[search_field], term) for term in terms) + ')'
-                    results += self.perform_query(tag, base_query, query)
+                    query += f' {self.build_query(base_query)}' if base_query != {} else ''
+                    results += self.perform_query(tag, query)
 
         self.log.debug(f'Nested search results: {len(results)}')
         self._add_results(list(results), tag)
