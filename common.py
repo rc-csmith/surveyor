@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Optional, Any, Union
-from hashid import HashID
+from hashid import HashID # type: ignore
 from help import log_echo
 
 class AuthenticationError(Exception):
