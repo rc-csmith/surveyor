@@ -10,8 +10,10 @@
     "md5": ["asdfasdfasdf"],
     "sha256":["qwerqwerqwer"],
     "ipport":["80"],
-    "filewrite_md5":["zxcvzxcvzxcv"],
-    "filewrite_sha256":["poiupoiupoiu"]
+    "hash":["3082699dd8831685e69c237637671577", "6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5"],
+    "process_hash":["3896ff04bf87dabb38a6057a61312de7", "061d9b82a348514cff4debc4cfacb0b73a356e4e8be14022310cf537981e9bfb"],
+    "filemod_hash":["1e17a3e0531151fd473c68c532943b26", "f1801c46da23f109842d5004db8fb787dcfc958dd50d744e52fff0d32e8a007f"],
+    "modload_hash":["3a90eb31cfb418f2ecdf996dfb85c94e", "cf958d621bf5188e1ce17fdc056b1aee6b0aa24e26b5cf529c92b20821e05824"]
   },
   "multiple_values":{
     "process_name":["svchost.exe", "services.exe"]
@@ -21,5 +23,8 @@
   },
   "multiple_query":{
     "query":["FieldA=ValueB", "FieldC=ValueD"]
+  },
+  "unsupported_hash":{
+    "hash":["1594244d52f2d8c12b142bb61f47bc2eaf503d6d9ca8480cae9fcf112f66e4967dc5e8fa98285e36db8af1b8ffa8b84cb15e0fbcf836c3deb803c13f37659a60"]
   }
 }

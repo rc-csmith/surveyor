@@ -13,7 +13,7 @@ from typing import Optional, Tuple
 import requests
 from requests.adapters import HTTPAdapter
 
-from common import Product, Tag, Result
+from common import Product, Tag, Result, hash_translation
 
 
 @dataclass
@@ -35,9 +35,26 @@ PARAMETER_MAPPING: dict[str, str] = {
     'regmod': 'action_registry_key_name',
     'md5': 'action_process_image_md5',
     'sha256': 'action_process_image_sha256',
-    'ipport': 'action_remote_port',
-    'filewrite_md5': 'action_file_md5',
-    'filewrite_sha256': 'action_file_sha256'
+    'ipport': 'action_remote_port'
+}
+
+SUPPORTED_HASH_TYPES: dict [str, dict[str, list[str]]] = {
+    'hash':{
+        'MD5': ['action_process_image_md5', 'action_file_md5', 'action_module_md5'],
+        'SHA-256':['action_process_image_sha256','action_file_sha256', 'action_module_sha256']
+    },
+    'process_hash':{
+        'MD5': ['action_process_image_md5'],
+        'SHA-256': ['action_process_image_sha256']
+    },
+    'filemod_hash':{
+        'MD5': ['action_file_md5'],
+        'SHA-256': ['action_file_sha256'],
+    },
+    'modload_hash':{
+        'MD5': ['action_module_md5'],
+        'SHA-256': ['action_module_sha256']
+    }
 }
 
 
@@ -205,6 +222,11 @@ class CortexXDR(Product):
                             self._queries[tag].append(Query(relative_time_ms, None, None, None, terms[0]))
                     else:
                         self._queries[tag].append(Query(relative_time_ms, None, None, None, terms))
+                elif search_field in SUPPORTED_HASH_TYPES.keys():
+                    hash_dict = hash_translation(terms, SUPPORTED_HASH_TYPES[search_field])
+                    for hash_type, hash_values in hash_dict.items():
+                        search_value = '(' + ', '.join(f'"{x}"' for x in hash_values) + ')'
+                        self._queries[tag].append(Query(relative_time_ms, hash_type, 'in', search_value))
                 else:
                     if search_field not in PARAMETER_MAPPING:
                         self._echo(f'Query filter {search_field} is not supported by product {self.product}',

@@ -76,9 +76,9 @@ def test_nested_process_search(cortex_product : CortexXDR):
     for program, criteria in programs.items():
         cortex_product.nested_process_search(Tag(program), criteria, {})
     
-    assert len(cortex_product._queries) == 4
+    assert len(cortex_product._queries) == 5
 
-    assert len(cortex_product._queries[Tag('field_translation')]) == 12
+    assert len(cortex_product._queries[Tag('field_translation')]) == 22
     relative_ts = 14 * 24 * 60 * 60 * 1000
     assert Query(relative_ts, 'action_process_image_name', 'contains', '"cmd.exe"') in cortex_product._queries[Tag('field_translation')]
     assert Query(relative_ts, 'action_remote_ip', 'contains', '"8.8.8.8"') in cortex_product._queries[Tag('field_translation')]
@@ -90,8 +90,18 @@ def test_nested_process_search(cortex_product : CortexXDR):
     assert Query(relative_ts, 'action_process_image_md5', 'contains', '"asdfasdfasdf"') in cortex_product._queries[Tag('field_translation')]
     assert Query(relative_ts, 'action_process_image_sha256', 'contains', '"qwerqwerqwer"') in cortex_product._queries[Tag('field_translation')]
     assert Query(relative_ts, 'action_remote_port', 'contains', '"80"') in cortex_product._queries[Tag('field_translation')]
-    assert Query(relative_ts, 'action_file_md5', 'contains', '"zxcvzxcvzxcv"') in cortex_product._queries[Tag('field_translation')]
-    assert Query(relative_ts, 'action_file_sha256', 'contains', '"poiupoiupoiu"') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_process_image_md5', 'in', '("3082699dd8831685e69c237637671577")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_file_md5', 'in', '("3082699dd8831685e69c237637671577")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_module_md5', 'in', '("3082699dd8831685e69c237637671577")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_process_image_sha256', 'in', '("6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_file_sha256', 'in', '("6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_module_sha256', 'in', '("6430986b78211872682c2ef434614950d6c5a0a06f7540dfbfcf58aeee08c5c5")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_process_image_md5', 'in', '("3896ff04bf87dabb38a6057a61312de7")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_process_image_sha256', 'in', '("061d9b82a348514cff4debc4cfacb0b73a356e4e8be14022310cf537981e9bfb")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_file_md5', 'in', '("1e17a3e0531151fd473c68c532943b26")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_file_sha256', 'in', '("f1801c46da23f109842d5004db8fb787dcfc958dd50d744e52fff0d32e8a007f")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_module_md5', 'in', '("3a90eb31cfb418f2ecdf996dfb85c94e")') in cortex_product._queries[Tag('field_translation')]
+    assert Query(relative_ts, 'action_module_sha256', 'in', '("cf958d621bf5188e1ce17fdc056b1aee6b0aa24e26b5cf529c92b20821e05824")') in cortex_product._queries[Tag('field_translation')]
 
     assert len(cortex_product._queries[Tag('multiple_values')]) == 1
     assert Query(relative_ts, 'action_process_image_name', 'in', '("*svchost.exe*", "*services.exe*")') in cortex_product._queries[Tag('multiple_values')]
